@@ -1,0 +1,41 @@
+# Environment variables and API keys
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+config.json
+secrets.json
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node / Scratch
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+scratch/
+
+# Agent coordination & internal memory files (not needed for project)
+.agents/
+PROJECT_MEMORY.md
+
+# Temporary manual dev test scripts (automated tests are in *.test.js)
+test/check-track.js
+test/test-caption-extract.js
+test/test-chrome-e2e-nocaptions.js
+test/test-full-gemini.js
+test/test-live-audio-nocaptions.js
+test/test-live-e2e-nocaptions.js
+test/test-scenarios-1-to-8.js
+test/test-yt-captions.js
+test/test-yt-dev.js

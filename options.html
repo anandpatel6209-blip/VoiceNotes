@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceNotes - Settings & Configuration</title>
+  <style>
+    :root {
+      --vn-bg: #faf8f4;
+      --vn-card: #ffffff;
+      --vn-text: #1d1b18;
+      --vn-muted: #8a857c;
+      --vn-border: #e4dfd5;
+      --vn-accent: #c2410c;
+      --vn-accent-bg: rgba(194, 65, 12, 0.08);
+      --vn-accent-hover: rgba(194, 65, 12, 0.16);
+      --vn-font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --vn-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --vn-radius: 6px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --vn-bg: #161512;
+        --vn-card: #1c1a17;
+        --vn-text: #ece8df;
+        --vn-muted: #9a9489;
+        --vn-border: #2c2925;
+        --vn-accent: #c2410c;
+        --vn-accent-bg: rgba(194, 65, 12, 0.16);
+        --vn-accent-hover: rgba(194, 65, 12, 0.24);
+      }
+    }
+
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background-color: var(--vn-bg);
+      color: var(--vn-text);
+      font-family: var(--vn-font-ui);
+      display: flex;
+      justify-content: center;
+      line-height: 1.5;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--vn-border);
+      padding-bottom: 16px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-family: var(--vn-font-mono);
+      background-color: var(--vn-accent-bg);
+      color: var(--vn-accent);
+      padding: 2px 8px;
+      border-radius: var(--vn-radius);
+      border: 1px solid var(--vn-accent);
+    }
+
+    .card {
+      background-color: var(--vn-card);
+      border: 1px solid var(--vn-border);
+      border-radius: var(--vn-radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: var(--vn-text);
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--vn-text);
+    }
+
+    .hint {
+      font-size: 11.5px;
+      color: var(--vn-muted);
+    }
+
+    select, input[type="text"], input[type="password"], input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--vn-border);
+      border-radius: var(--vn-radius);
+      background-color: var(--vn-bg);
+      color: var(--vn-text);
+      font-family: var(--vn-font-ui);
+      font-size: 13px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 150ms ease;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--vn-accent);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-row input {
+      flex: 1;
+    }
+
+    .btn {
+      padding: 7px 14px;
+      font-family: var(--vn-font-ui);
+      font-size: 12.5px;
+      font-weight: 500;
+      border: 1px solid var(--vn-border);
+      border-radius: var(--vn-radius);
+      background-color: var(--vn-card);
+      color: var(--vn-text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+      transition: all 120ms ease;
+    }
+
+    .btn:hover {
+      border-color: var(--vn-muted);
+      background-color: var(--vn-border);
+    }
+
+    .btn-primary {
+      background-color: var(--vn-accent-bg);
+      border-color: var(--vn-accent);
+      color: var(--vn-accent);
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--vn-accent-hover);
+    }
+
+    .btn-danger {
+      color: #dc2626;
+      border-color: #fca5a5;
+      background-color: rgba(220, 38, 38, 0.05);
+    }
+
+    .btn-danger:hover {
+      background-color: rgba(220, 38, 38, 0.12);
+    }
+
+    .status-msg {
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: var(--vn-radius);
+      display: none;
+    }
+
+    .status-msg.success {
+      display: block;
+      background-color: rgba(22, 163, 74, 0.1);
+      color: #16a34a;
+      border: 1px solid #86efac;
+    }
+
+    .status-msg.error {
+      display: block;
+      background-color: rgba(220, 38, 38, 0.08);
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .kbd-shortcut {
+      font-family: var(--vn-font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      background-color: var(--vn-bg);
+      border: 1px solid var(--vn-border);
+      border-radius: 4px;
+      color: var(--vn-text);
+    }
+
+    .shortcuts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12.5px;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px dashed var(--vn-border);
+    }
+
+    .notice {
+      background-color: var(--vn-card);
+      border: 1px solid var(--vn-border);
+      border-left: 3px solid var(--vn-accent);
+      border-radius: var(--vn-radius);
+      padding: 14px 16px;
+      font-size: 12.5px;
+      color: var(--vn-muted);
+      line-height: 1.6;
+    }
+
+    .notice strong {
+      color: var(--vn-text);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1 class="title">VoiceNotes Settings</h1>
+        <span class="badge">v1.0.0</span>
+      </div>
+    </div>
+
+    <!-- AI Configuration -->
+    <div class="card">
+      <h2 class="card-title">AI Provider & Credentials</h2>
+
+      <div class="form-group">
+        <label for="provider-select">Provider</label>
+        <select id="provider-select">
+          <option value="gemini" selected>Google Gemini (Gemini 3.5 Flash Lite / Pro)</option>
+          <option value="anthropic">Anthropic (Claude 3.5 Sonnet / Haiku)</option>
+          <option value="openai">OpenAI (GPT-4o / GPT-4o-mini)</option>
+          <option value="groq">Groq (Llama 3.3 70B / 8B)</option>
+        </select>
+        <span class="hint">Provider used for transcript summarization and voice edit synthesis.</span>
+      </div>
+
+      <div class="form-group">
+        <label for="model-select">Model</label>
+        <select id="model-select">
+          <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite (Recommended, Fast)</option>
+          <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+          <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="api-key-input">API Key</label>
+        <div class="input-row">
+          <input type="password" id="api-key-input" placeholder="Paste your provider API key here..." autocomplete="off" spellcheck="false" />
+          <button type="button" class="btn" id="toggle-key-visibility">Show</button>
+          <button type="button" class="btn" id="test-connection-btn">Test Connection</button>
+          <button type="button" class="btn btn-danger" id="remove-key-btn">Clear</button>
+        </div>
+        <span class="hint">Stored strictly inside your browser's local extension storage. Never transmitted to third parties.</span>
+      </div>
+
+      <div id="connection-status" class="status-msg"></div>
+    </div>
+
+    <!-- Playback & Note-taking Preferences -->
+    <div class="card">
+      <h2 class="card-title">Playback & Live Notes</h2>
+
+      <div class="toggle-row">
+        <div>
+          <label for="live-toggle">Live AI Note Taking</label>
+          <div class="hint">Automatically generate notes while watching videos with captions.</div>
+        </div>
+        <input type="checkbox" id="live-toggle" style="width: auto;" checked />
+      </div>
+
+      <div class="form-group">
+        <label for="interval-select">Transcript Chunk Interval</label>
+        <select id="interval-select">
+          <option value="15">Every 15 seconds (High detail)</option>
+          <option value="30" selected>Every 30 seconds (Balanced, Recommended)</option>
+          <option value="45">Every 45 seconds</option>
+          <option value="60">Every 60 seconds (High-level summary)</option>
+        </select>
+        <span class="hint">Frequency at which new video transcript segments are submitted to AI.</span>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <label for="auto-resume-toggle">Auto-Resume Playback</label>
+          <div class="hint">Automatically resume the video after submitting a voice/text edit.</div>
+        </div>
+        <input type="checkbox" id="auto-resume-toggle" style="width: auto;" checked />
+      </div>
+
+      <div class="form-group">
+        <label for="speech-lang-select">Speech Recognition Language</label>
+        <select id="speech-lang-select">
+          <option value="auto">Auto-detect (System & Local Accent)</option>
+          <option value="en-IN">English (India)</option>
+          <option value="hi-IN">Hindi (India)</option>
+          <option value="en-US">English (United States)</option>
+          <option value="en-GB">English (United Kingdom)</option>
+          <option value="es-ES">Spanish (Spain)</option>
+          <option value="fr-FR">French (France)</option>
+          <option value="de-DE">German (Germany)</option>
+        </select>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <label for="debug-toggle">Debug Logging</label>
+          <div class="hint">Log request durations and token metrics in the browser console.</div>
+        </div>
+        <input type="checkbox" id="debug-toggle" style="width: auto;" />
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+        <button type="button" class="btn" id="reload-ext-btn" title="Reload extension scripts and background worker from disk">↻ Reload Extension</button>
+        <button type="button" class="btn btn-primary" id="save-btn">Save Preferences</button>
+      </div>
+
+      <div id="status-box" class="status-msg"></div>
+    </div>
+
+    <!-- Keyboard Shortcuts -->
+    <div class="card">
+      <h2 class="card-title">Keyboard Shortcuts</h2>
+      <div class="shortcuts-list">
+        <div class="shortcut-item">
+          <span>Pause video and focus edit input</span>
+          <span class="kbd-shortcut">Alt + V</span>
+        </div>
+        <div class="shortcut-item">
+          <span>Submit edit to AI</span>
+          <span class="kbd-shortcut">Enter</span>
+        </div>
+        <div class="shortcut-item">
+          <span>Resume video and cancel edit</span>
+          <span class="kbd-shortcut">Esc</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy & Security Notice -->
+    <div class="notice">
+      <strong>Privacy & Security:</strong> VoiceNotes operates entirely client-side. Transcript data and spoken notes are transmitted directly from the background service worker to your selected AI provider endpoint. No proprietary backend, analytics, telemetry, or remote tracking scripts are embedded.
+    </div>
+
+    <!-- Data Reset -->
+    <div class="card">
+      <div class="toggle-row">
+        <div>
+          <label style="color: #dc2626;">Reset Notebook Data</label>
+          <div class="hint">Delete all saved notes for all videos and clear local storage.</div>
+        </div>
+        <button type="button" class="btn btn-danger" id="clear-data-btn">Delete All Data</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

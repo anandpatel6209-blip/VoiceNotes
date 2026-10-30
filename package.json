@@ -1,0 +1,20 @@
+{
+  "name": "voicenotes",
+  "version": "1.0.0",
+  "description": "Live, timestamped AI notes while video plays, with voice editing.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "test:watch": "node --test --watch test/**/*.test.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "voice-notes",
+    "ai",
+    "youtube",
+    "learning",
+    "wispr-flow"
+  ],
+  "author": "VoiceNotes Team",
+  "license": "MIT"
+}

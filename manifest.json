@@ -1,0 +1,87 @@
+{
+  "manifest_version": 3,
+  "name": "VoiceNotes - AI Real-Time Video Notebook",
+  "version": "1.0.0",
+  "description": "Live, timestamped AI notes while video plays, with voice editing and smart synthesis.",
+  "permissions": [
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://youtube.com/*",
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.groq.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "panel.css",
+        "bridge.js"
+      ],
+      "matches": [
+        "*://*.youtube.com/*",
+        "*://youtube.com/*"
+      ]
+    }
+  ],
+  "commands": {
+    "toggle-pause-edit": {
+      "suggested_key": {
+        "default": "Alt+V"
+      },
+      "description": "Pause video and focus VoiceNotes edit input"
+    }
+  },
+  "action": {
+    "default_title": "VoiceNotes - Video Notebook",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

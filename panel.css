@@ -1,0 +1,2091 @@
+/**
+ * VoiceNotes - Panel Stylesheet
+ * Strict adherence to design tokens:
+ * Light: paper #faf8f4, ink #1d1b18, muted #8a857c, border #e4dfd5, accent #c2410c
+ * Dark:  bg #161512, text #ece8df, border #2c2925, accent #c2410c
+ * Notebook / code-editor aesthetic, compact 4px spacing, 0 gradients, 0 heavy shadows.
+ */
+
+:host {
+  all: initial;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color-scheme: light dark;
+}
+
+/* Design Tokens - Modern Dark-first Productivity Palette */
+.vn-root {
+  --vn-bg: #121110;
+  --vn-card-bg: #1a1917;
+  --vn-text: #f5f5f4;
+  --vn-muted: #9a9489;
+  --vn-border: rgba(255, 255, 255, 0.08);
+  --vn-accent: #c2410c;
+  --vn-accent-bg: rgba(194, 65, 12, 0.12);
+  --vn-accent-hover: rgba(194, 65, 12, 0.22);
+  --vn-kbd-bg: #22201d;
+  --vn-live-dot: #22c55e;
+  --vn-font-ui: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --vn-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  --vn-notebook-line: rgba(255, 255, 255, 0.05);
+  --vn-notebook-margin: rgba(235, 100, 70, 0.55);
+  --vn-radius: 6px;
+  --vn-transition: 180ms ease-out;
+
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100vh;
+  background-color: var(--vn-bg);
+  color: var(--vn-text);
+  border-left: 1px solid var(--vn-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  transform: translateX(0);
+  transition: transform var(--vn-transition);
+  user-select: text;
+  pointer-events: auto;
+  z-index: 2147483647;
+}
+
+/* Light Mode Overrides (if preferred by system) */
+@media (prefers-color-scheme: light) {
+  .vn-root {
+    --vn-bg: #faf8f4;
+    --vn-card-bg: #ffffff;
+    --vn-text: #1d1b18;
+    --vn-muted: #8a857c;
+    --vn-border: #e4dfd5;
+    --vn-accent: #c2410c;
+    --vn-accent-bg: rgba(194, 65, 12, 0.08);
+    --vn-accent-hover: rgba(194, 65, 12, 0.14);
+    --vn-kbd-bg: #f0ebe1;
+    --vn-live-dot: #16a34a;
+    --vn-notebook-line: rgba(0, 0, 0, 0.055);
+    --vn-notebook-margin: rgba(220, 80, 50, 0.65);
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .vn-root,
+  .vn-root * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Collapsed state */
+.vn-root.vn-collapsed {
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+/* Floating toggle pill when collapsed */
+.vn-toggle-pill {
+  pointer-events: auto;
+  position: fixed;
+  top: 72px;
+  right: 0;
+  z-index: 2147483647;
+  background-color: var(--vn-bg);
+  color: var(--vn-text);
+  border: 1px solid var(--vn-border);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  padding: 6px 10px;
+  font-family: var(--vn-font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: -2px 2px 6px rgba(0, 0, 0, 0.08);
+  transition: background-color 150ms ease;
+}
+
+.vn-toggle-pill:hover {
+  background-color: var(--vn-kbd-bg);
+}
+
+.vn-toggle-pill.vn-hidden {
+  display: none;
+}
+
+/* 1. Header */
+.vn-header {
+  height: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--vn-border);
+  box-sizing: border-box;
+  background-color: var(--vn-bg);
+}
+
+.vn-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vn-title {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  color: var(--vn-text);
+}
+
+/* Header Status Indicator */
+.vn-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--vn-border);
+  line-height: 1.2;
+}
+
+.vn-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.vn-status-live {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.35);
+  background-color: rgba(34, 197, 94, 0.12);
+}
+.vn-status-live .vn-status-dot {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+.vn-status-paused {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+  background-color: rgba(245, 158, 11, 0.12);
+}
+.vn-status-paused .vn-status-dot {
+  background-color: #f59e0b;
+}
+
+.vn-status-idle {
+  color: var(--vn-muted);
+  border-color: var(--vn-border);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.vn-status-idle .vn-status-dot {
+  background-color: var(--vn-muted);
+}
+
+.vn-status-generating {
+  color: var(--vn-accent);
+  border-color: rgba(194, 65, 12, 0.45);
+  background-color: var(--vn-accent-bg);
+}
+.vn-status-generating .vn-status-dot {
+  background-color: var(--vn-accent);
+  animation: vnPulse 1s infinite ease-in-out;
+}
+
+.vn-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vn-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vn-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--vn-live-dot);
+}
+
+.vn-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vn-icon-button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vn-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--vn-radius);
+  font-size: 12px;
+  font-family: var(--vn-font-ui);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms ease;
+}
+
+.vn-icon-button:hover {
+  color: var(--vn-text);
+  border-color: var(--vn-border);
+  background-color: var(--vn-card-bg);
+}
+
+/* 2. Banner: Paused & Edit Mode */
+.vn-banner {
+  background-color: var(--vn-accent-bg);
+  border-bottom: 1px solid var(--vn-accent);
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vn-accent);
+  overflow: hidden;
+  max-height: 36px;
+  opacity: 1;
+  transition: max-height 150ms ease-out, opacity 150ms ease-out, padding 150ms ease-out;
+}
+
+.vn-banner.vn-hidden {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Status / Info bar (e.g. captions status, error banners) */
+.vn-status-bar {
+  padding: 6px 12px;
+  font-size: 11.5px;
+  border-bottom: 1px solid var(--vn-border);
+  color: var(--vn-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--vn-bg);
+}
+
+.vn-status-bar.vn-error {
+  color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.08);
+  border-bottom-color: rgba(220, 38, 38, 0.2);
+}
+
+.vn-status-bar.vn-hidden {
+  display: none;
+}
+
+/* 3. Notes Scrollable List */
+.vn-notes-container {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.vn-notes-container::-webkit-scrollbar {
+  width: 5px;
+}
+
+.vn-notes-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vn-notes-container::-webkit-scrollbar-thumb {
+  background: var(--vn-border);
+  border-radius: 3px;
+}
+
+/* Individual Note Card */
+.vn-note-card {
+  padding: 8px 10px;
+  background-color: var(--vn-card-bg);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: vnSlideUp 200ms ease-out forwards;
+}
+
+@keyframes vnSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* User Note Style: 2px accent border like a margin note */
+.vn-note-card.vn-note-user {
+  border-left: 2px solid var(--vn-accent);
+  background-color: var(--vn-accent-bg);
+}
+
+/* AI Note Style: neutral */
+.vn-note-card.vn-note-ai {
+  border-left: 1px solid var(--vn-border);
+}
+
+/* Changed/Edited Lines: accent background that fades out over 2s */
+.vn-note-card.vn-highlight-change {
+  animation: vnHighlightFade 2s ease-out forwards;
+}
+
+@keyframes vnHighlightFade {
+  0% {
+    background-color: rgba(194, 65, 12, 0.28);
+    border-color: var(--vn-accent);
+  }
+  100% {
+    background-color: var(--vn-card-bg);
+    border-color: var(--vn-border);
+  }
+}
+
+.vn-note-card.vn-note-user.vn-highlight-change {
+  animation: vnUserHighlightFade 2s ease-out forwards;
+}
+
+@keyframes vnUserHighlightFade {
+  0% {
+    background-color: rgba(194, 65, 12, 0.38);
+  }
+  100% {
+    background-color: var(--vn-accent-bg);
+  }
+}
+
+/* Undo button inside status bar */
+.vn-undo-btn {
+  background: transparent;
+  border: none;
+  color: var(--vn-accent);
+  font-family: var(--vn-font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  margin-left: 6px;
+}
+
+.vn-undo-btn:hover {
+  opacity: 0.8;
+}
+
+/* Mic button inside input wrapper */
+.vn-mic-btn {
+  position: absolute;
+  right: 74px;
+  background: transparent;
+  border: none;
+  color: var(--vn-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms ease;
+  z-index: 2;
+}
+
+.vn-mic-btn:hover,
+.vn-mic-btn.vn-listening {
+  color: var(--vn-accent);
+  background-color: var(--vn-accent-bg);
+}
+
+.vn-mic-btn.vn-listening {
+  animation: vnPulse 1s infinite ease-in-out;
+}
+
+/* Submit button inside input wrapper */
+.vn-submit-btn {
+  position: absolute;
+  right: 6px;
+  background: var(--vn-accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: var(--vn-font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 120ms ease;
+  line-height: 1.2;
+  z-index: 2;
+}
+
+.vn-submit-btn:hover {
+  background: #ea580c;
+  transform: translateY(-0.5px);
+}
+
+.vn-submit-btn:active {
+  transform: translateY(0);
+}
+
+.vn-note-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Timestamp element */
+.vn-note-time {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vn-muted);
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: var(--vn-kbd-bg);
+  user-select: none;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+.vn-note-time:hover {
+  color: var(--vn-text);
+  border: 1px solid var(--vn-border);
+}
+
+/* User label "you" badge */
+.vn-badge-user {
+  font-family: var(--vn-font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: lowercase;
+  color: var(--vn-accent);
+  letter-spacing: 0.02em;
+}
+
+/* Note text */
+.vn-note-text {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--vn-text);
+  word-break: break-word;
+}
+
+/* Writing / Processing State Indicator */
+.vn-writing-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  color: var(--vn-muted);
+  font-style: italic;
+}
+
+.vn-writing-state.vn-hidden {
+  display: none;
+}
+
+.vn-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.vn-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--vn-muted);
+  display: inline-block;
+  animation: vnPulse 1.2s infinite ease-in-out;
+}
+
+.vn-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.vn-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes vnPulse {
+  0%, 80%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* 4. Footer & Input Area (Pinned to bottom) */
+.vn-footer {
+  border-top: 1px solid var(--vn-border);
+  padding: 12px;
+  background-color: var(--vn-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+/* Input box with subtle active glow */
+.vn-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.vn-input {
+  width: 100%;
+  padding: 8px 145px 8px 10px;
+  font-family: var(--vn-font-ui);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--vn-text);
+  background-color: var(--vn-card-bg);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.vn-input::placeholder {
+  color: var(--vn-muted);
+}
+
+.vn-input:focus,
+.vn-input.vn-active-glow {
+  border-color: var(--vn-accent);
+  box-shadow: 0 0 0 2px var(--vn-accent-bg);
+}
+
+/* Buttons Area */
+.vn-button-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Flat, 6px radius, 1px border buttons */
+.vn-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-family: var(--vn-font-ui);
+  font-size: 11.5px;
+  font-weight: 500;
+  border-radius: var(--vn-radius);
+  border: 1px solid var(--vn-border);
+  background-color: var(--vn-card-bg);
+  color: var(--vn-text);
+  cursor: pointer;
+  transition: all 120ms ease;
+  user-select: none;
+}
+
+.vn-btn span,
+.vn-btn kbd {
+  pointer-events: none;
+}
+
+.vn-btn:hover {
+  background-color: var(--vn-kbd-bg);
+  border-color: var(--vn-muted);
+}
+
+.vn-btn-primary {
+  border-color: var(--vn-accent);
+  background-color: var(--vn-accent-bg);
+  color: var(--vn-accent);
+  font-weight: 600;
+}
+
+.vn-btn-primary:hover {
+  background-color: var(--vn-accent-hover);
+}
+
+/* Keyboard hint inside buttons */
+.vn-kbd {
+  font-family: var(--vn-font-mono);
+  font-size: 9.5px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: var(--vn-kbd-bg);
+  border: 1px solid var(--vn-border);
+  color: var(--vn-muted);
+  letter-spacing: 0.02em;
+}
+
+.vn-btn-primary .vn-kbd {
+  border-color: rgba(194, 65, 12, 0.3);
+  color: var(--vn-accent);
+}
+
+/* Workspace Toolbar (Search + Generate Notes) */
+.vn-workspace-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--vn-bg);
+  border-bottom: 1px solid var(--vn-border);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.vn-search-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.vn-search-icon {
+  position: absolute;
+  left: 9px;
+  font-size: 11px;
+  color: var(--vn-muted);
+  pointer-events: none;
+  user-select: none;
+}
+
+.vn-search-wrapper .vn-search-input,
+.vn-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px 6px 28px;
+  font-family: var(--vn-font-ui);
+  font-size: 12px;
+  color: var(--vn-text);
+  background-color: var(--vn-card-bg);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  outline: none;
+  transition: border-color var(--vn-transition), box-shadow var(--vn-transition);
+}
+
+.vn-search-wrapper .vn-search-input:focus,
+.vn-search-input:focus {
+  border-color: var(--vn-accent);
+  box-shadow: 0 0 0 2px var(--vn-accent-bg);
+}
+
+/* Generate Notes Button Completely Removed for Full Automation */
+.vn-btn-generate,
+.vn-btn-generate-sparkle,
+.vn-btn-generate-text {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Spinner inside generate button */
+.vn-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: vnSpin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes vnSpin {
+  to { transform: rotate(360deg); }
+}
+
+.vn-search-container {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--vn-border);
+  background-color: var(--vn-bg);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Note count badge */
+.vn-count-badge {
+  font-family: var(--vn-font-mono);
+  font-size: 10px;
+  color: var(--vn-muted);
+  background-color: var(--vn-kbd-bg);
+  padding: 1px 5px;
+  border-radius: 10px;
+  border: 1px solid var(--vn-border);
+}
+
+/* Card Header Actions (Edit / Delete) */
+.vn-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vn-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.vn-note-card:hover .vn-card-actions {
+  opacity: 1;
+}
+
+.vn-card-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--vn-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.vn-card-action-btn:hover {
+  color: var(--vn-text);
+  background-color: var(--vn-kbd-bg);
+}
+
+.vn-card-action-btn.vn-btn-delete:hover {
+  color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.1);
+}
+
+/* Inline Edit Area */
+.vn-inline-edit-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-family: var(--vn-font-ui);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--vn-text);
+  background-color: var(--vn-bg);
+  border: 1px solid var(--vn-accent);
+  border-radius: 4px;
+  outline: none;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.vn-inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* Empty notes state */
+.vn-empty-state {
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--vn-muted);
+  font-size: 12.5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.vn-empty-title {
+  font-weight: 600;
+  color: var(--vn-text);
+}
+
+/* Document-Style Live Notes View */
+.vn-doc-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--vn-bg);
+  color: var(--vn-text);
+  font-family: var(--vn-font-ui);
+}
+
+.vn-doc-header {
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.vn-doc-brand-row {
+  margin-bottom: 6px;
+}
+
+.vn-doc-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--vn-text);
+  letter-spacing: -0.015em;
+  word-break: break-word;
+}
+
+.vn-doc-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--vn-muted);
+  margin-top: 4px;
+}
+
+.vn-doc-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vn-muted);
+}
+
+.vn-doc-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--vn-live-dot);
+  display: inline-block;
+  animation: vnPulse 1.8s infinite ease-in-out;
+}
+
+.vn-doc-status-text {
+  font-weight: 500;
+}
+
+.vn-doc-count-label {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: var(--vn-muted);
+}
+
+.vn-doc-divider {
+  border: none;
+  border-top: 1px solid var(--vn-border);
+  margin: 10px 0 14px 0;
+}
+
+.vn-doc-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vn-doc-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: var(--vn-radius);
+  transition: background-color 150ms ease, border-color 150ms ease;
+  position: relative;
+  background-color: transparent;
+  border-left: 2px solid transparent;
+}
+
+.vn-doc-entry:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vn-doc-entry:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.vn-doc-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+}
+
+.vn-doc-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vn-doc-timestamp-btn {
+  background: transparent;
+  border: none;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--vn-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vn-accent);
+  cursor: pointer;
+  letter-spacing: -0.02em;
+  transition: all 120ms ease;
+}
+
+.vn-doc-timestamp-btn:hover {
+  background-color: var(--vn-accent-bg);
+  text-decoration: underline;
+}
+
+.vn-doc-user-tag {
+  font-family: var(--vn-font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vn-accent);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.vn-doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.vn-doc-entry:hover .vn-doc-actions,
+.vn-doc-entry:focus-within .vn-doc-actions {
+  opacity: 1;
+}
+
+.vn-doc-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--vn-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: all 120ms ease;
+}
+
+.vn-doc-action-btn:hover {
+  color: var(--vn-text);
+  background-color: var(--vn-kbd-bg);
+}
+
+.vn-doc-action-btn.vn-doc-btn-delete:hover {
+  color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.12);
+}
+
+.vn-doc-body {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--vn-text);
+  word-break: break-word;
+}
+
+.vn-doc-paragraph {
+  margin: 0 0 6px 0;
+}
+
+.vn-doc-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.vn-doc-bullet-list {
+  margin: 0 0 6px 0;
+  padding-left: 18px;
+  list-style-type: disc;
+}
+
+.vn-doc-bullet-list:last-child {
+  margin-bottom: 0;
+}
+
+.vn-doc-bullet-item {
+  margin-bottom: 3px;
+  line-height: 1.55;
+}
+
+/* User Note Style in Document */
+.vn-doc-entry.vn-doc-entry-user {
+  border-left: 2px solid var(--vn-accent);
+  background-color: var(--vn-accent-bg);
+  padding-left: 10px;
+}
+
+/* New content visual indicator */
+.vn-doc-entry.vn-doc-new-entry {
+  animation: vnDocNewEntryFade 2.2s ease-out forwards;
+}
+
+@keyframes vnDocNewEntryFade {
+  0% {
+    background-color: rgba(194, 65, 12, 0.28);
+    box-shadow: 0 0 0 1px var(--vn-accent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.vn-doc-entry.vn-doc-entry-user.vn-doc-new-entry {
+  animation: vnDocUserNewEntryFade 2.2s ease-out forwards;
+}
+
+@keyframes vnDocUserNewEntryFade {
+  0% {
+    background-color: rgba(194, 65, 12, 0.38);
+  }
+  100% {
+    background-color: var(--vn-accent-bg);
+  }
+}
+
+/* Document Empty State */
+.vn-doc-empty-state {
+  padding: 32px 14px;
+  text-align: center;
+  color: var(--vn-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.vn-doc-empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--vn-text);
+}
+
+.vn-doc-empty-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--vn-muted);
+  max-width: 260px;
+}
+
+.vn-doc-quick-action {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   AI-Powered Smart Notes Markdown Typography & Document Spacing
+   ========================================================================== */
+.vn-notepad-heading-main {
+  font-family: var(--vn-font-ui);
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 6px;
+  margin-bottom: 2em; /* Approximately two lines of vertical spacing below heading */
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.vn-notepad-subheading {
+  font-family: var(--vn-font-ui);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--vn-accent);
+  margin-top: 14px;
+  margin-bottom: 6px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.vn-notepad-paragraph {
+  font-family: var(--vn-font-ui);
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #e7e5e4;
+  margin: 0 0 8px 0;
+}
+
+.vn-notepad-bullet-list {
+  margin: 6px 0 10px 0;
+  padding-left: 18px;
+  list-style-type: disc;
+}
+
+.vn-notepad-bullet-item {
+  font-family: var(--vn-font-ui);
+  font-size: 12px;
+  line-height: 1.55;
+  color: #d6d3d1;
+  margin-bottom: 4px;
+}
+
+.vn-notepad-bullet-item strong,
+.vn-notepad-paragraph strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.vn-notepad-ordered-list {
+  margin: 6px 0 10px 0;
+  padding-left: 18px;
+  list-style-type: decimal;
+}
+
+.vn-notepad-ordered-item {
+  font-family: var(--vn-font-ui);
+  font-size: 12px;
+  line-height: 1.55;
+  color: #d6d3d1;
+  margin-bottom: 4px;
+}
+
+.vn-notepad-inline-code {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  background-color: var(--vn-kbd-bg);
+  color: #f97316;
+  padding: 1.5px 4.5px;
+  border-radius: 4px;
+  border: 1px solid var(--vn-border);
+}
+
+.vn-notepad-code-block {
+  font-family: var(--vn-font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  background-color: #0c0b0a;
+  color: #f5f5f4;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--vn-border);
+  overflow-x: auto;
+  margin: 8px 0 12px 0;
+  white-space: pre;
+}
+
+.vn-notepad-code-block code {
+  font-family: inherit;
+  color: inherit;
+}
+
+.vn-notepad-quote {
+  border-left: 3px solid var(--vn-accent);
+  padding-left: 10px;
+  margin: 6px 0 10px 0;
+  color: var(--vn-muted);
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Retry button in status or error */
+.vn-retry-btn {
+  background: var(--vn-accent);
+  color: #ffffff;
+  border: none;
+  font-family: var(--vn-font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 2px 7px;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: opacity 120ms ease;
+}
+
+.vn-retry-btn:hover {
+  opacity: 0.9;
+}
+
+/* Live Speaker Audio Listener Styles */
+.vn-doc-pulse-dot.vn-doc-pulse-amber {
+  background-color: var(--vn-accent);
+  box-shadow: 0 0 6px rgba(194, 65, 12, 0.6);
+  animation: vnPulse 1.2s infinite ease-in-out;
+}
+
+.vn-icon-button.vn-audio-active {
+  color: var(--vn-accent);
+  background-color: var(--vn-accent-bg);
+  border: 1px solid var(--vn-accent);
+}
+
+.vn-doc-empty-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.vn-btn.vn-btn-active {
+  background-color: var(--vn-accent-bg);
+  color: var(--vn-accent);
+  border: 1px solid var(--vn-accent);
+}
+
+/* ==========================================================================
+   Live Video Dialogue & Caption Stream Box (Removed from visible interface)
+   ========================================================================== */
+.vn-live-stream-card {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Digital Notepad Document Sheet (Lined Paper with Margin)
+   Writes text like an authentic digital notebook on the extension screen
+   ========================================================================== */
+.vn-notepad-sheet {
+  position: relative;
+  width: 100%;
+  min-height: calc(100% - 10px);
+  box-sizing: border-box;
+  background-color: var(--vn-bg);
+  /* Continuous horizontal notebook ruled lines spaced at 28px */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    var(--vn-notebook-line) 27px,
+    var(--vn-notebook-line) 28px
+  );
+  background-size: 100% 28px;
+  border: 1px solid var(--vn-border);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  padding: 14px 14px 24px 38px;
+  color: var(--vn-text);
+  font-family: var(--vn-font-ui);
+}
+
+/* Classic vertical left red/terracotta notebook margin guide line */
+.vn-notepad-sheet::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 30px;
+  width: 1.5px;
+  background-color: var(--vn-notebook-margin);
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Top Notepad Document Header */
+.vn-notepad-header {
+  margin-bottom: 12px;
+  padding-bottom: 2px;
+}
+
+.vn-notepad-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.vn-notepad-file-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vn-text);
+}
+
+.vn-notepad-file-name {
+  color: var(--vn-accent);
+}
+
+.vn-notepad-save-badge {
+  font-family: var(--vn-font-ui);
+  font-size: 9.5px;
+  font-weight: 500;
+  color: #16a34a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-left: 2px;
+}
+
+.vn-notepad-count {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  color: var(--vn-muted);
+}
+
+.vn-notepad-title {
+  margin: 4px 0 6px 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--vn-text);
+  letter-spacing: -0.015em;
+  word-break: break-word;
+}
+
+.vn-notepad-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--vn-muted);
+  margin-top: 2px;
+}
+
+.vn-notepad-date {
+  font-family: var(--vn-font-ui);
+}
+
+.vn-notepad-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--vn-muted);
+}
+
+.vn-notepad-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--vn-live-dot);
+  display: inline-block;
+  animation: vnPulse 1.8s infinite ease-in-out;
+}
+
+.vn-notepad-pulse-dot.vn-pulse-amber {
+  background-color: var(--vn-accent);
+  box-shadow: 0 0 5px rgba(194, 65, 12, 0.6);
+}
+
+.vn-notepad-divider {
+  border: none;
+  border-top: 1px dashed var(--vn-border);
+  margin: 8px 0 12px 0;
+}
+
+/* Entries written on the Notepad */
+.vn-notepad-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vn-notepad-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+  position: relative;
+  background-color: transparent;
+}
+
+.vn-notepad-entry:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  .vn-notepad-entry:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.vn-notepad-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 18px;
+}
+
+.vn-notepad-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vn-notepad-time-btn {
+  background: transparent;
+  border: none;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-family: var(--vn-font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--vn-accent);
+  cursor: pointer;
+  letter-spacing: -0.02em;
+  transition: all 120ms ease;
+}
+
+.vn-notepad-time-btn:hover {
+  background-color: var(--vn-accent-bg);
+  text-decoration: underline;
+}
+
+.vn-notepad-user-tag {
+  font-family: var(--vn-font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vn-accent);
+  text-transform: lowercase;
+}
+
+.vn-notepad-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.vn-notepad-entry:hover .vn-notepad-actions,
+.vn-notepad-entry:focus-within .vn-notepad-actions {
+  opacity: 1;
+}
+
+.vn-notepad-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--vn-muted);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: all 120ms ease;
+}
+
+.vn-notepad-action-btn:hover {
+  color: var(--vn-text);
+  background-color: var(--vn-kbd-bg);
+}
+
+.vn-notepad-action-btn.vn-notepad-btn-delete:hover {
+  color: #dc2626;
+  background-color: rgba(220, 38, 38, 0.12);
+}
+
+.vn-notepad-body {
+  font-size: 12.5px;
+  line-height: 28px; /* Perfectly aligned to notebook horizontal ruling lines */
+  color: var(--vn-text);
+  word-break: break-word;
+}
+
+.vn-notepad-line {
+  margin: 0;
+  line-height: 28px;
+}
+
+.vn-notepad-bullet-list {
+  margin: 0;
+  padding-left: 16px;
+  list-style-type: disc;
+}
+
+.vn-notepad-bullet-item {
+  margin: 0;
+  line-height: 28px;
+}
+
+/* User's notes on notepad */
+.vn-notepad-entry.vn-notepad-entry-user {
+  background-color: var(--vn-accent-bg);
+  border-left: 2px solid var(--vn-accent);
+  padding-left: 8px;
+}
+
+/* Selected Note for Voice/Text Editing */
+.vn-notepad-entry.vn-note-selected {
+  background-color: var(--vn-accent-bg) !important;
+  border-left: 3px solid var(--vn-accent) !important;
+  box-shadow: 0 0 0 1px var(--vn-accent), 0 2px 8px rgba(194, 65, 12, 0.15) !important;
+  border-radius: 4px;
+}
+
+.vn-selected-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vn-accent);
+  background-color: rgba(194, 65, 12, 0.12);
+  border: 1px solid var(--vn-accent);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  letter-spacing: 0.3px;
+}
+
+.vn-inline-mic-btn {
+  background-color: var(--vn-accent-bg);
+  border-color: var(--vn-accent);
+  color: var(--vn-accent);
+  font-weight: 600;
+}
+
+.vn-inline-mic-btn:hover {
+  background-color: var(--vn-accent);
+  color: #ffffff;
+}
+
+/* New note highlight fade on notepad */
+.vn-notepad-entry.vn-notepad-new-entry {
+  animation: vnNotepadNewEntryFade 2.2s ease-out forwards;
+}
+
+@keyframes vnNotepadNewEntryFade {
+  0% {
+    background-color: rgba(194, 65, 12, 0.28);
+    box-shadow: 0 0 0 1px var(--vn-accent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+/* Active Typewriter Writing Line on Notepad */
+.vn-notepad-writing-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  line-height: 28px;
+  font-size: 12px;
+  color: var(--vn-muted);
+  font-style: italic;
+  border-left: 2px dashed var(--vn-accent);
+  background-color: var(--vn-accent-bg);
+  border-radius: 3px;
+  animation: vnWritingPulse 1.6s infinite ease-in-out;
+}
+
+@keyframes vnWritingPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+
+.vn-notepad-writing-time {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vn-accent);
+}
+
+.vn-notepad-writing-text {
+  color: var(--vn-text);
+}
+
+.vn-notepad-blinking-cursor {
+  font-family: var(--vn-font-mono);
+  font-weight: 700;
+  color: var(--vn-accent);
+  animation: vnBlinkCursor 0.9s infinite step-start;
+}
+
+@keyframes vnBlinkCursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Notepad Empty State */
+.vn-notepad-empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--vn-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.vn-notepad-empty-icon {
+  font-size: 26px;
+}
+
+.vn-notepad-empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--vn-text);
+}
+
+.vn-notepad-empty-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--vn-muted);
+  max-width: 250px;
+}
+
+.vn-notepad-empty-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.vn-notepad-action-pill {
+  font-size: 11.5px;
+}
+
+/* ==========================================================================
+   Dual View Tabs Switcher (Deleted from visible screen - only Notes displayed)
+   ========================================================================== */
+.vn-view-tabs {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  pointer-events: none !important;
+}
+
+.vn-transcript-container {
+  display: none !important;
+}
+
+.vn-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-family: var(--vn-font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vn-muted);
+  cursor: pointer;
+  transition: all var(--vn-transition);
+  white-space: nowrap;
+}
+
+.vn-tab-btn:hover {
+  color: var(--vn-text);
+  background-color: var(--vn-accent-bg);
+  border-radius: 4px 4px 0 0;
+}
+
+.vn-tab-btn.vn-tab-active {
+  color: var(--vn-accent);
+  font-weight: 600;
+  border-bottom-color: var(--vn-accent);
+}
+
+/* ==========================================================================
+   Full-Screen Transcript Reader Mode
+   ========================================================================== */
+.vn-root.vn-reader-mode .vn-footer,
+.vn-root.vn-reader-mode .vn-writing-state,
+.vn-root.vn-reader-mode .vn-banner,
+.vn-root.vn-reader-mode .vn-workspace-toolbar {
+  display: none !important;
+}
+
+.vn-root.vn-reader-mode .vn-transcript-container {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex !important;
+  flex-direction: column;
+}
+
+/* Transcript Navigation Bar */
+.vn-transcript-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--vn-card-bg);
+  border-bottom: 1px solid var(--vn-border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.vn-transcript-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background-color: var(--vn-kbd-bg);
+  color: var(--vn-text);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  font-family: var(--vn-font-ui);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--vn-transition);
+  flex-shrink: 0;
+}
+
+.vn-transcript-back-btn:hover {
+  background-color: var(--vn-accent-bg);
+  border-color: var(--vn-accent);
+  color: var(--vn-accent);
+}
+
+.vn-transcript-reader-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vn-transcript-reader-title {
+  font-family: var(--vn-font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vn-text);
+  white-space: nowrap;
+}
+
+.vn-transcript-search-bar {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 6px 12px;
+  background-color: var(--vn-bg);
+  border-bottom: 1px solid var(--vn-border);
+  flex-shrink: 0;
+}
+
+.vn-transcript-search-bar .vn-search-icon {
+  position: absolute;
+  left: 20px;
+  font-size: 11px;
+  color: var(--vn-muted);
+  pointer-events: none;
+}
+
+.vn-transcript-search-input {
+  width: 100%;
+  padding: 5px 8px 5px 26px;
+  background-color: var(--vn-card-bg);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  color: var(--vn-text);
+  font-family: var(--vn-font-ui);
+  font-size: 11.5px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color var(--vn-transition);
+}
+
+.vn-transcript-search-input:focus {
+  border-color: var(--vn-accent);
+}
+
+/* ==========================================================================
+   Line-by-Line Transcript & Audio Container
+   ========================================================================== */
+.vn-transcript-container {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--vn-bg);
+  position: relative;
+}
+
+.vn-transcript-container.vn-hidden {
+  display: none !important;
+}
+
+/* Transcript Toolbar */
+.vn-transcript-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background-color: var(--vn-card-bg);
+  border-bottom: 1px solid var(--vn-border);
+  flex-shrink: 0;
+  font-size: 11px;
+}
+
+.vn-transcript-meta-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vn-transcript-lines-badge {
+  font-family: var(--vn-font-mono);
+  font-weight: 600;
+  color: var(--vn-text);
+  background-color: var(--vn-kbd-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--vn-border);
+}
+
+.vn-transcript-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--vn-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.vn-pulse-circle {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--vn-live-dot);
+  display: inline-block;
+  animation: vnPulseDot 2s infinite ease-in-out;
+}
+
+.vn-transcript-tools-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vn-transcript-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  background-color: var(--vn-kbd-bg);
+  color: var(--vn-text);
+  border: 1px solid var(--vn-border);
+  border-radius: 4px;
+  font-family: var(--vn-font-ui);
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--vn-transition);
+}
+
+.vn-transcript-tool-btn:hover {
+  background-color: var(--vn-accent-bg);
+  border-color: var(--vn-accent);
+  color: var(--vn-accent);
+}
+
+.vn-transcript-tool-btn.vn-active {
+  background-color: var(--vn-accent-bg);
+  color: var(--vn-accent);
+  border-color: var(--vn-accent);
+  font-weight: 600;
+}
+
+.vn-transcript-tool-btn.vn-gen-btn {
+  background-color: var(--vn-accent);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+}
+
+.vn-transcript-tool-btn.vn-gen-btn:hover {
+  background-color: #ea580c;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Transcript Scrollable List */
+.vn-transcript-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Transcript Line Row - Readable Typography & Paragraph Spacing */
+.vn-transcript-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background-color var(--vn-transition), border-color var(--vn-transition);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e7e5e4;
+}
+
+.vn-transcript-row:hover {
+  background-color: var(--vn-accent-bg);
+}
+
+/* Active playback line */
+.vn-transcript-row.vn-line-active {
+  background-color: var(--vn-accent-bg);
+  border-left: 3px solid var(--vn-accent);
+  box-shadow: inset 0 0 0 1px rgba(194, 65, 12, 0.15);
+}
+
+.vn-transcript-row.vn-line-active .vn-transcript-time-btn {
+  color: var(--vn-accent);
+  font-weight: 700;
+}
+
+.vn-transcript-row.vn-line-active .vn-transcript-text {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Timestamp jump button */
+.vn-transcript-time-btn {
+  font-family: var(--vn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vn-muted);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--vn-transition);
+}
+
+.vn-transcript-time-btn:hover {
+  color: var(--vn-accent);
+  text-decoration: underline;
+}
+
+/* Source badge: CC vs Audio */
+.vn-transcript-source-badge {
+  font-family: var(--vn-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+
+.vn-transcript-source-badge.vn-source-cc {
+  background-color: var(--vn-kbd-bg);
+  color: var(--vn-muted);
+  border: 1px solid var(--vn-border);
+}
+
+.vn-transcript-source-badge.vn-source-audio {
+  background-color: rgba(22, 163, 74, 0.12);
+  color: var(--vn-live-dot);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+}
+
+/* Transcript text */
+.vn-transcript-text {
+  flex: 1;
+  color: var(--vn-text);
+  word-break: break-word;
+}
+
+/* Search match highlighting */
+mark.vn-search-match {
+  background-color: #fef08a;
+  color: #854d0e;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  mark.vn-search-match {
+    background-color: #854d0e;
+    color: #fef08a;
+  }
+}
+
+/* Transcript empty state */
+.vn-transcript-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--vn-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.vn-transcript-empty-icon {
+  font-size: 28px;
+}
+
+.vn-transcript-empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--vn-text);
+}
+
+.vn-transcript-empty-sub {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--vn-muted);
+  max-width: 250px;
+}
+
+
+
