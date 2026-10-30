@@ -14,8 +14,139 @@
  */
 
 (() => {
+  // Only execute in top-level window (prevent iframe execution & unsafe resource loading)
+  if (window.top !== window.self) {
+    return;
+  }
+
   const TAG = '[VoiceNotes:content]';
   console.log(`${TAG} Initializing VoiceNotes content script.`);
+
+  // Centralized Message Contracts (shared consistently across scripts)
+  const MESSAGE_TYPES = {
+    GENERATE_LIVE_NOTES: 'GENERATE_LIVE_NOTES',
+    PROCESS_VOICE_EDIT: 'PROCESS_VOICE_EDIT',
+    CANCEL_JOB: 'CANCEL_JOB',
+    GET_QUEUE_STATUS: 'GET_QUEUE_STATUS',
+    TEST_PROVIDER: 'TEST_PROVIDER',
+    GET_SETTINGS: 'GET_SETTINGS',
+    UPDATE_SETTINGS: 'UPDATE_SETTINGS',
+    LOAD_NOTES: 'LOAD_NOTES',
+    SAVE_NOTES: 'SAVE_NOTES',
+    CLEAR_NOTES: 'CLEAR_NOTES',
+    LOAD_TRANSCRIPT: 'LOAD_TRANSCRIPT',
+    SAVE_TRANSCRIPT: 'SAVE_TRANSCRIPT',
+    GET_EDIT_HISTORY: 'GET_EDIT_HISTORY',
+    RESTORE_VERSION: 'RESTORE_VERSION',
+    FETCH_CAPTIONS: 'FETCH_CAPTIONS',
+    EXPORT_NOTES: 'EXPORT_NOTES',
+    PING: 'PING',
+    OPEN_OPTIONS: 'OPEN_OPTIONS',
+    COMMAND_TRIGGERED: 'COMMAND_TRIGGERED',
+    TOGGLE_PANEL: 'TOGGLE_PANEL'
+  };
+
+  // Extension Lifecycle & Context Invalidation Protection
+  let isContextInvalidated = false;
+
+  function isExtensionValid() {
+    if (isContextInvalidated) return false;
+    try {
+      const valid = Boolean(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+      if (!valid) {
+        handleContextInvalidated();
+      }
+      return valid;
+    } catch (e) {
+      handleContextInvalidated();
+      return false;
+    }
+  }
+
+  function handleContextInvalidated() {
+    if (isContextInvalidated) return;
+    isContextInvalidated = true;
+    console.warn(`${TAG} Extension context invalidated (extension was reloaded or updated). Cleaning up.`);
+
+    stopSpeechRecognition();
+    if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+    if (transcriptSaveDebounceTimer) clearTimeout(transcriptSaveDebounceTimer);
+
+    showContextInvalidatedBanner();
+  }
+
+  function showContextInvalidatedBanner() {
+    if (!panelRoot) return;
+    let banner = shadowRoot ? shadowRoot.getElementById('vn-context-invalidated-banner') : null;
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'vn-context-invalidated-banner';
+      banner.className = 'vn-banner vn-banner-warning';
+      banner.style.cssText =
+        'background: #431407; border: 1px solid #9a3412; color: #fed7aa; padding: 10px 14px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; z-index: 9999;';
+      banner.innerHTML =
+        '<span>⚠️ <b>VoiceNotes was reloaded.</b> Please refresh this YouTube tab (press <b>F5</b>) to continue.</span>' +
+        '<button id="vn-refresh-tab-btn" style="background:#ea580c; color:#fff; border:none; padding:4px 10px; border-radius:4px; font-size:11px; font-weight:600; cursor:pointer;">Refresh Tab</button>';
+
+      const refreshBtn = banner.querySelector('#vn-refresh-tab-btn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.location.reload();
+        });
+      }
+
+      if (panelRoot.firstChild) {
+        panelRoot.insertBefore(banner, panelRoot.firstChild);
+      } else {
+        panelRoot.appendChild(banner);
+      }
+    }
+  }
+
+  /**
+   * Safe wrapper for chrome.runtime.sendMessage that prevents uncaught
+   * "Extension context invalidated" errors and handles disconnected channels.
+   */
+  function safeSendMessage(message, callback) {
+    if (!isExtensionValid()) {
+      if (typeof callback === 'function') {
+        callback({ success: false, error: 'Extension context invalidated' });
+      }
+      return;
+    }
+
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        const lastErr = chrome.runtime.lastError;
+        if (lastErr) {
+          const errMsg = lastErr.message || '';
+          if (errMsg.includes('Extension context invalidated')) {
+            handleContextInvalidated();
+          } else if (errMsg.includes('message channel closed') || errMsg.includes('Could not establish connection')) {
+            console.warn(`${TAG} Message notice:`, errMsg);
+          }
+          if (typeof callback === 'function') {
+            callback({ success: false, error: errMsg });
+          }
+          return;
+        }
+
+        if (typeof callback === 'function') {
+          callback(response);
+        }
+      });
+    } catch (err) {
+      if (err.message && err.message.includes('Extension context invalidated')) {
+        handleContextInvalidated();
+      } else {
+        console.warn(`${TAG} safeSendMessage caught:`, err.message);
+      }
+      if (typeof callback === 'function') {
+        callback({ success: false, error: err.message });
+      }
+    }
+  }
 
   // DOM references (Shadow DOM encapsulated)
   let hostElement = null;
@@ -149,7 +280,8 @@
     liveEnabled: true,
     chunkInterval: 15,
     speechLang: 'en-US',
-    preferredCaptionLang: 'en'
+    preferredCaptionLang: 'en',
+    hasApiKey: false
   };
 
   /**
@@ -246,6 +378,50 @@
   function hideStatus() {
     if (!statusBarEl) return;
     statusBarEl.classList.add('vn-hidden');
+  }
+
+  /**
+   * Display or hide the API key reminder banner in the panel
+   */
+  function updateApiKeyBanner() {
+    if (!panelRoot) return;
+    const existing = shadowRoot ? shadowRoot.getElementById('vn-api-key-banner') : null;
+
+    if (!settings.hasApiKey) {
+      if (!existing) {
+        const banner = document.createElement('div');
+        banner.id = 'vn-api-key-banner';
+        banner.className = 'vn-banner vn-banner-warning';
+        banner.style.cssText =
+          'background: #1e1b4b; border-bottom: 1px solid #4338ca; color: #c7d2fe; padding: 8px 12px; font-size: 11px; display: flex; align-items: center; justify-content: space-between; gap: 8px;';
+        banner.innerHTML =
+          '<span>🔑 <b>API key not configured.</b> Add your key in Settings for AI notes.</span>' +
+          '<button id="vn-open-settings-btn" style="background:#6366f1; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:600; cursor:pointer; white-space:nowrap;">Settings</button>';
+
+        const openBtn = banner.querySelector('#vn-open-settings-btn');
+        if (openBtn) {
+          openBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            try {
+              safeSendMessage({ type: MESSAGE_TYPES.OPEN_OPTIONS }, (res) => {
+                if (!res?.success) window.open(chrome.runtime.getURL('options.html'), '_blank');
+              });
+            } catch (err) {
+              window.open(chrome.runtime.getURL('options.html'), '_blank');
+            }
+          });
+        }
+
+        const header = panelRoot.querySelector('.vn-header');
+        if (header && header.nextSibling) {
+          panelRoot.insertBefore(banner, header.nextSibling);
+        } else {
+          panelRoot.prepend(banner);
+        }
+      }
+    } else if (existing) {
+      existing.remove();
+    }
   }
 
   /**
@@ -408,8 +584,8 @@
     if (!currentVideoId) return;
     clearTimeout(saveDebounceTimer);
     saveDebounceTimer = setTimeout(() => {
-      chrome.runtime.sendMessage({
-        type: 'SAVE_NOTES',
+      safeSendMessage({
+        type: MESSAGE_TYPES.SAVE_NOTES,
         payload: {
           videoId: currentVideoId,
           notes: notesList
@@ -1121,8 +1297,8 @@
     if (!currentVideoId || videoTranscript.length === 0) return;
     clearTimeout(transcriptSaveDebounceTimer);
     transcriptSaveDebounceTimer = setTimeout(() => {
-      chrome.runtime.sendMessage({
-        type: 'SAVE_TRANSCRIPT',
+      safeSendMessage({
+        type: MESSAGE_TYPES.SAVE_TRANSCRIPT,
         payload: {
           videoId: currentVideoId,
           transcript: videoTranscript
@@ -1136,16 +1312,12 @@
    */
   function loadSavedTranscript(videoId) {
     if (!videoId) return;
-    chrome.runtime.sendMessage(
+    safeSendMessage(
       {
-        type: 'LOAD_TRANSCRIPT',
+        type: MESSAGE_TYPES.LOAD_TRANSCRIPT,
         payload: { videoId }
       },
       (res) => {
-        if (chrome.runtime.lastError) {
-          console.warn(`${TAG} Could not load transcript:`, chrome.runtime.lastError.message);
-          return;
-        }
         if (res?.success && Array.isArray(res.transcript) && res.transcript.length > 0) {
           // Merge with any segments already parsed, avoiding duplicates
           res.transcript.forEach((savedSeg) => {
@@ -2140,29 +2312,37 @@
       resumeVideo(true);
     };
 
+    // Check if API key is configured before sending AI request
+    if (!settings.hasApiKey) {
+      showStatus('🔑 Note added directly (enter API key in Settings for AI editing).', false);
+      applyDirectFallback();
+      updateApiKeyBanner();
+      return;
+    }
+
     // Show AI progress status
     showStatus('🤖 AI is updating your notes...', false);
 
     // Dispatch PROCESS_VOICE_EDIT to background AI worker
     try {
-      chrome.runtime.sendMessage(
-        {
-          type: MESSAGE_TYPES.PROCESS_VOICE_EDIT,
-          payload: {
-            videoId: currentVideoId,
-            userTime,
-            instruction,
-            existingNotes: notesList,
-            selectedNoteId: currentSelectedId,
-            transcriptContext: videoTranscript.length > 0 ? videoTranscript.slice(-5).map((t) => t.text).join(' ') : ''
-          }
-        },
-        (response) => {
-          if (chrome.runtime.lastError || !response || !response.success) {
-            console.warn(`${TAG} AI voice edit unavailable or failed, applying direct fallback:`, chrome.runtime.lastError?.message || response?.error);
-            applyDirectFallback();
-            return;
-          }
+      safeSendMessage(
+      {
+        type: MESSAGE_TYPES.PROCESS_VOICE_EDIT,
+        payload: {
+          videoId: currentVideoId,
+          userTime,
+          instruction,
+          existingNotes: notesList,
+          selectedNoteId: currentSelectedId,
+          transcriptContext: videoTranscript.length > 0 ? videoTranscript.slice(-5).map((t) => t.text).join(' ') : ''
+        }
+      },
+      (response) => {
+        if (!response || !response.success) {
+          console.warn(`${TAG} AI voice edit unavailable or failed, applying direct fallback:`, response?.error);
+          applyDirectFallback();
+          return;
+        }
 
           // Handle clarification prompt from AI
           if (response.status === 'clarification_needed') {
@@ -2213,7 +2393,7 @@
         }
       );
     } catch (sendErr) {
-      console.warn(`${TAG} Exception sending voice edit to background:`, sendErr.message);
+      console.warn(`${TAG} Exception sending voice edit:`, sendErr.message);
       applyDirectFallback();
     }
   }
@@ -2368,8 +2548,8 @@
       if (!timedText || (!timedText.includes('<text') && !timedText.includes('{'))) {
         try {
           const bgRes = await new Promise((resolve) => {
-            chrome.runtime.sendMessage(
-              { type: 'FETCH_CAPTIONS', payload: { url: selectedTrack.baseUrl } },
+            safeSendMessage(
+              { type: MESSAGE_TYPES.FETCH_CAPTIONS, payload: { url: selectedTrack.baseUrl } },
               resolve
             );
           });
@@ -2766,14 +2946,26 @@
    * Generates smart notes in the format: Heading then Summary of the whole topic.
    */
   function triggerChunkGeneration(chunkStart, chunkEnd, chunkText, onComplete = null, topicTitle = '') {
+    if (!settings.hasApiKey) {
+      console.warn(`${TAG} Live notes generation paused: API key not configured.`);
+      updateApiKeyBanner();
+      showStatus('🔑 Configure API key in Settings (•••) to enable AI notes.', false);
+      if (typeof onComplete === 'function') {
+        try {
+          onComplete({ success: false, error: 'API key not configured' });
+        } catch (e) {}
+      }
+      return;
+    }
+
     const intervalKey = `${chunkStart}-${chunkEnd}`;
     pendingIntervals.add(intervalKey);
     isAiRequestActive = true;
     setWritingState(true, 'Writing smart notes');
 
-    chrome.runtime.sendMessage(
+    safeSendMessage(
       {
-        type: 'GENERATE_LIVE_NOTES',
+        type: MESSAGE_TYPES.GENERATE_LIVE_NOTES,
         payload: {
           chunkText,
           chunkStartTime: chunkStart,
@@ -2801,11 +2993,10 @@
           checkTopicCompletion(nowSec, Boolean(vid.ended));
         }
 
-        if (chrome.runtime.lastError) {
-          console.warn(`${TAG} LLM error:`, chrome.runtime.lastError.message);
-          showErrorWithRetry('Worker communication error', () => {
-            triggerChunkGeneration(chunkStart, chunkEnd, chunkText, onComplete, topicTitle);
-          });
+        if (response?.error && response.error.includes('API key')) {
+          settings.hasApiKey = false;
+          updateApiKeyBanner();
+          showStatus('🔑 Configure API key in Settings to generate AI notes.', false);
           return;
         }
 
@@ -3120,9 +3311,9 @@
 
     currentVideoTitle = getVideoTitle();
 
-    chrome.runtime.sendMessage(
+    safeSendMessage(
       {
-        type: 'EXPORT_NOTES',
+        type: MESSAGE_TYPES.EXPORT_NOTES,
         payload: {
           title: currentVideoTitle,
           videoId: currentVideoId,
@@ -3161,8 +3352,8 @@
     pendingIntervals.clear();
     renderAllNotes();
 
-    chrome.runtime.sendMessage({
-      type: 'CLEAR_NOTES',
+    safeSendMessage({
+      type: MESSAGE_TYPES.CLEAR_NOTES,
       payload: { videoId: currentVideoId }
     });
 
@@ -3178,17 +3369,12 @@
       renderAllNotes();
       return;
     }
-    chrome.runtime.sendMessage(
+    safeSendMessage(
       {
-        type: 'LOAD_NOTES',
+        type: MESSAGE_TYPES.LOAD_NOTES,
         payload: { videoId }
       },
       (res) => {
-        if (chrome.runtime.lastError) {
-          console.warn(`${TAG} Could not load notes:`, chrome.runtime.lastError.message);
-          renderAllNotes();
-          return;
-        }
         if (res?.success && Array.isArray(res.notes)) {
           notesList = res.notes;
           console.log(`${TAG} Loaded ${notesList.length} notes for ${videoId}`);
@@ -3207,14 +3393,16 @@
    * Load user settings from background
    */
   function loadSettings() {
-    chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }, (res) => {
+    safeSendMessage({ type: MESSAGE_TYPES.GET_SETTINGS }, (res) => {
       if (res?.success && res.config) {
+        settings.hasApiKey = Boolean(res.config.apiKey);
         settings.autoResume = res.config.autoResume !== undefined ? res.config.autoResume : true;
         settings.liveEnabled = res.config.liveEnabled !== undefined ? res.config.liveEnabled : true;
         settings.chunkInterval = res.config.chunkInterval || 15;
         settings.speechLang = res.config.speechLang || 'en-US';
         settings.preferredCaptionLang = res.config.preferredCaptionLang || 'en';
         chunkIntervalSec = settings.chunkInterval;
+        updateApiKeyBanner();
       }
     });
   }
@@ -3290,11 +3478,33 @@
       checkTopicCompletion
     };
 
-    // Link panel stylesheet
-    const styleLink = document.createElement('link');
-    styleLink.rel = 'stylesheet';
-    styleLink.href = chrome.runtime.getURL('panel.css');
-    shadowRoot.appendChild(styleLink);
+    // Inject panel styles using <style> tag to prevent unsafe frame cross-origin link warnings
+    const panelStyleEl = document.createElement('style');
+    panelStyleEl.id = 'vn-panel-styles';
+    shadowRoot.appendChild(panelStyleEl);
+
+    try {
+      fetch(chrome.runtime.getURL('panel.css'))
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.text();
+        })
+        .then((css) => {
+          panelStyleEl.textContent = css;
+        })
+        .catch((err) => {
+          console.warn(`${TAG} Could not load panel.css via fetch, falling back to link:`, err.message);
+          const styleLink = document.createElement('link');
+          styleLink.rel = 'stylesheet';
+          styleLink.href = chrome.runtime.getURL('panel.css');
+          shadowRoot.appendChild(styleLink);
+        });
+    } catch (e) {
+      const styleLink = document.createElement('link');
+      styleLink.rel = 'stylesheet';
+      styleLink.href = chrome.runtime.getURL('panel.css');
+      shadowRoot.appendChild(styleLink);
+    }
 
     // 1. Root container
     panelRoot = el('div', { className: 'vn-root' });
@@ -3362,8 +3572,8 @@
     menuBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       try {
-        chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' }, () => {
-          if (chrome.runtime.lastError) {
+        safeSendMessage({ type: MESSAGE_TYPES.OPEN_OPTIONS }, (res) => {
+          if (!res?.success) {
             window.open(chrome.runtime.getURL('options.html'), '_blank');
           }
         });
@@ -3658,9 +3868,12 @@
   );
 
   // Background commands & actions listener
-  chrome.runtime.onMessage.addListener((message) => {
-    if (!message || typeof message !== 'object') return;
-    if (message.type === 'TOGGLE_PANEL') {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message || typeof message !== 'object') {
+      if (typeof sendResponse === 'function') sendResponse({ success: false, error: 'Invalid message' });
+      return false;
+    }
+    if (message.type === MESSAGE_TYPES.TOGGLE_PANEL || message.type === 'TOGGLE_PANEL') {
       if (panelRoot) {
         const isCollapsed = panelRoot.classList.contains('vn-collapsed');
         if (isCollapsed) {
@@ -3673,9 +3886,20 @@
       } else {
         initPanel();
       }
-    } else if (message.type === 'COMMAND_TRIGGERED' && message.payload?.command === 'toggle-pause-edit') {
-      pauseAndEdit();
+      if (typeof sendResponse === 'function') sendResponse({ success: true });
+      return false;
+    } else if (message.type === MESSAGE_TYPES.COMMAND_TRIGGERED || message.type === 'COMMAND_TRIGGERED') {
+      if (message.payload?.command === 'toggle-pause-edit') {
+        pauseAndEdit();
+      }
+      if (typeof sendResponse === 'function') sendResponse({ success: true });
+      return false;
+    } else if (message.type === MESSAGE_TYPES.PING || message.type === 'PING') {
+      if (typeof sendResponse === 'function') sendResponse({ success: true, pong: true });
+      return false;
     }
+    if (typeof sendResponse === 'function') sendResponse({ success: true });
+    return false;
   });
 
   // Automatically sync preference changes from options page

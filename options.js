@@ -206,30 +206,40 @@
     showStatus(connStatusBox, 'Testing connection with provider endpoint...', true, 0);
 
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-      chrome.runtime.sendMessage(
-        {
-          type: 'TEST_PROVIDER',
-          payload: { provider, apiKey, model }
-        },
-        (res) => {
-          testConnBtn.disabled = false;
-          testConnBtn.textContent = 'Test Connection';
+      try {
+        chrome.runtime.sendMessage(
+          {
+            type: 'TEST_PROVIDER',
+            payload: { provider, apiKey, model }
+          },
+          (res) => {
+            testConnBtn.disabled = false;
+            testConnBtn.textContent = 'Test Connection';
 
-          if (chrome.runtime.lastError) {
-            // Fallback directly via fetch
-            testDirectly(provider, apiKey, model)
-              .then(() => showStatus(connStatusBox, `Connected successfully to ${provider} (${model})!`, true))
-              .catch((err) => showStatus(connStatusBox, err.message, false));
-            return;
-          }
+            if (chrome.runtime.lastError) {
+              // Fallback directly via fetch
+              testDirectly(provider, apiKey, model)
+                .then(() => showStatus(connStatusBox, `Connected successfully to ${provider} (${model})!`, true))
+                .catch((err) => showStatus(connStatusBox, err.message, false));
+              return;
+            }
 
-          if (res?.success && res.ok) {
-            showStatus(connStatusBox, `Connected successfully to ${provider} (${model})!`, true);
-          } else {
-            showStatus(connStatusBox, res?.error || 'Connection failed. Check API key and quota.', false);
+            if (res?.success && res.ok) {
+              showStatus(connStatusBox, `Connected successfully to ${provider} (${model})!`, true);
+            } else {
+              showStatus(connStatusBox, res?.error || 'Connection failed. Check API key and quota.', false);
+            }
           }
-        }
-      );
+        );
+      } catch (sendErr) {
+        testDirectly(provider, apiKey, model)
+          .then(() => showStatus(connStatusBox, `Connected successfully to ${provider} (${model})!`, true))
+          .catch((err) => showStatus(connStatusBox, err.message, false))
+          .finally(() => {
+            testConnBtn.disabled = false;
+            testConnBtn.textContent = 'Test Connection';
+          });
+      }
     } else {
       // Direct browser fallback
       try {

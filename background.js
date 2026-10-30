@@ -100,6 +100,14 @@ async function processQueue() {
     }
 
     const isUserEdit = activeJob.priority === 1;
+
+    if (!config.apiKey || config.apiKey.trim().length === 0) {
+      activeJob.status = JOB_STATUS.FAILED;
+      console.warn(`${TAG} Job halted: API key not configured. Waiting for user setup.`);
+      activeJob.reject(new Error('API key not configured. Open VoiceNotes settings (•••) and enter your key.'));
+      return;
+    }
+
     const rawResponse = await callLLMWithRetry({
       provider: config.provider,
       apiKey: config.apiKey,
@@ -177,9 +185,15 @@ function cancelCurrentJob() {
  * Handle GENERATE_LIVE_NOTES request
  */
 async function handleGenerateLiveNotes(payload) {
-  const { chunkText, chunkStartTime, chunkEndTime, existingNotes, videoTitle, topicTitle } = payload;
+  const { chunkText, chunkStartTime, chunkEndTime, existingNotes, videoTitle, topicTitle } = payload || {};
   if (!chunkText || typeof chunkText !== 'string' || chunkText.trim().length < 10) {
     throw new Error('Transcript chunk text is too short to generate notes.');
+  }
+
+  // Pre-validate API key before attempting LLM work
+  const config = await getConfig();
+  if (!config.apiKey || config.apiKey.trim().length === 0) {
+    throw new Error('API key not configured. Open VoiceNotes settings (•••) and enter your key.');
   }
 
   // Pre-filter: ignore music, applause, silence, or noise chunks before calling LLM
@@ -256,6 +270,12 @@ async function handleProcessVoiceEdit(payload) {
   }
 
   const cleanInstruction = instruction.trim();
+
+  // Pre-validate API key before attempting LLM work
+  const config = await getConfig();
+  if (!config.apiKey || config.apiKey.trim().length === 0) {
+    throw new Error('API key not configured. Open VoiceNotes settings (•••) and enter your key.');
+  }
 
   const systemPrompt =
     'You are VoiceNotes Intelligent Document Editor. You perform persistent, context-aware editing on an active document of notes.\n\n' +
@@ -417,13 +437,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case MESSAGE_TYPES.CANCEL_JOB:
       sendResponse({ success: true, ...cancelCurrentJob() });
-      break;
+      return false;
 
     case MESSAGE_TYPES.GET_SETTINGS:
       getConfig()
         .then((config) => {
           // Never return raw API key back to content script
-          const safeConfig = { ...config, apiKey: Boolean(config.apiKey) };
+          const safeConfig = { ...config, apiKey: Boolean(config.apiKey && config.apiKey.trim().length > 0) };
           sendResponse({ success: true, config: safeConfig });
         })
         .catch((err) => sendResponse({ success: false, error: err.message }));
@@ -440,7 +460,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const videoId = payload?.videoId;
       if (!videoId) {
         sendResponse({ success: false, error: 'Missing videoId' });
-        return;
+        return false;
       }
       chrome.storage.local
         .get(`notes:${videoId}`)
@@ -453,7 +473,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { videoId, notes } = payload || {};
       if (!videoId || !Array.isArray(notes)) {
         sendResponse({ success: false, error: 'Invalid save payload' });
-        return;
+        return false;
       }
       chrome.storage.local
         .set({ [`notes:${videoId}`]: notes })
@@ -465,18 +485,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     case MESSAGE_TYPES.CLEAR_NOTES: {
       const videoId = payload?.videoId;
       if (videoId) {
-        chrome.storage.local.remove(`notes:${videoId}`).then(() => sendResponse({ success: true }));
+        chrome.storage.local
+          .remove(`notes:${videoId}`)
+          .then(() => sendResponse({ success: true }))
+          .catch((err) => sendResponse({ success: false, error: err.message }));
+        return true;
       } else {
         sendResponse({ success: false, error: 'Missing videoId' });
+        return false;
       }
-      return true;
     }
 
     case MESSAGE_TYPES.LOAD_TRANSCRIPT: {
       const videoId = payload?.videoId;
       if (!videoId) {
         sendResponse({ success: false, error: 'Missing videoId' });
-        return true;
+        return false;
       }
       chrome.storage.local
         .get(`transcript:${videoId}`)
@@ -489,7 +513,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const { videoId, transcript } = payload || {};
       if (!videoId || !Array.isArray(transcript)) {
         sendResponse({ success: false, error: 'Invalid save payload' });
-        return true;
+        return false;
       }
       chrome.storage.local
         .set({ [`transcript:${videoId}`]: transcript })
@@ -502,7 +526,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const videoId = payload?.videoId;
       if (!videoId) {
         sendResponse({ success: true, history: editEngine.getEditHistory() });
-        return true;
+        return false;
       }
       chrome.storage.local
         .get(`history:${videoId}`)
@@ -520,20 +544,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const restored = editEngine.restoreVersion(versionId, notes);
       if (!restored) {
         sendResponse({ success: false, error: 'Version not found' });
-        return true;
+        return false;
       }
       if (videoId && chrome.storage?.local) {
         chrome.storage.local.set({ [`notes:${videoId}`]: restored.updatedNotes }).catch(console.error);
       }
       sendResponse({ success: true, ...restored });
-      return true;
+      return false;
     }
 
+    case MESSAGE_TYPES.FETCH_CAPTIONS:
     case 'FETCH_CAPTIONS': {
       const fetchUrl = payload?.url;
       if (!fetchUrl) {
         sendResponse({ success: false, error: 'Missing caption URL' });
-        return true;
+        return false;
       }
 
       const fetchTimedText = async () => {
@@ -578,18 +603,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
       }
       sendResponse({ success: true });
-      break;
+      return false;
 
     case MESSAGE_TYPES.PING:
       sendResponse({ success: true, timestamp: Date.now() });
-      break;
+      return false;
 
     default:
       sendResponse({ success: false, error: `Unhandled message type: ${type}` });
-      break;
+      return false;
   }
 
-  return true;
+  return false;
 });
 
 // Route manifest Alt+V command to active tab
@@ -617,7 +642,7 @@ if (chrome.action?.onClicked) {
   chrome.action.onClicked.addListener(async (tab) => {
     console.log(`${TAG} Action icon clicked on tab:`, tab?.url);
     if (tab?.id && tab.url && (tab.url.includes('youtube.com/watch') || tab.url.includes('youtube.com/'))) {
-      chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_PANEL' }, () => {
+      chrome.tabs.sendMessage(tab.id, { type: MESSAGE_TYPES.TOGGLE_PANEL }, () => {
         if (chrome.runtime.lastError) {
           chrome.runtime.openOptionsPage();
         }
