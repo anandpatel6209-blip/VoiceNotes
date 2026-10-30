@@ -3525,6 +3525,38 @@
   }
 
   /**
+   * Create the crisp, vibrant VoiceNotes project logo icon
+   */
+  function createLogoIcon(size = 20) {
+    const container = document.createElement('span');
+    container.className = 'vn-logo-icon';
+    container.style.display = 'inline-flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    container.style.width = `${size}px`;
+    container.style.height = `${size}px`;
+    container.style.flexShrink = '0';
+    container.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="${size}" height="${size}">
+      <rect x="18" y="14" width="92" height="100" rx="14" fill="#1d1b18"/>
+      <rect x="26" y="18" width="80" height="92" rx="10" fill="#ffffff"/>
+      <line x1="33" y1="24" x2="33" y2="104" stroke="#c2410c" stroke-width="3" stroke-dasharray="4 3" stroke-linecap="round"/>
+      <line x1="42" y1="36" x2="94" y2="36" stroke="#d5cebe" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="42" y1="48" x2="94" y2="48" stroke="#d5cebe" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="42" y1="60" x2="80" y2="60" stroke="#d5cebe" stroke-width="2.5" stroke-linecap="round"/>
+      <g fill="#c2410c">
+        <rect x="42" y="78" width="5" height="16" rx="2.5"/>
+        <rect x="51" y="71" width="5" height="30" rx="2.5"/>
+        <rect x="60" y="66" width="5" height="40" rx="2.5"/>
+        <rect x="69" y="73" width="5" height="26" rx="2.5"/>
+        <rect x="78" y="69" width="5" height="34" rx="2.5"/>
+        <rect x="87" y="77" width="5" height="18" rx="2.5"/>
+      </g>
+      <circle cx="95" cy="28" r="4" fill="#c2410c"/>
+    </svg>`;
+    return container;
+  }
+
+  /**
    * Construct and mount the VoiceNotes panel inside a closed Shadow DOM
    */
   function initPanel() {
@@ -3629,8 +3661,10 @@
     // 2. Floating toggle pill when collapsed
     togglePill = el('button', {
       className: 'vn-toggle-pill vn-hidden',
-      text: 'VoiceNotes'
+      attrs: { title: 'Open VoiceNotes' }
     });
+    togglePill.appendChild(createLogoIcon(20));
+    togglePill.appendChild(el('span', { className: 'vn-toggle-text', text: 'VoiceNotes' }));
     togglePill.addEventListener('click', (e) => {
       e.stopPropagation();
       panelRoot.classList.remove('vn-collapsed');
@@ -3641,6 +3675,7 @@
     const header = el('div', { className: 'vn-header' });
 
     const headerLeft = el('div', { className: 'vn-header-left' });
+    headerLeft.appendChild(createLogoIcon(20));
     const brandTitle = el('span', { className: 'vn-title', text: 'VoiceNotes' });
 
     headerStatusPillEl = el('span', { className: 'vn-status-pill vn-status-idle' });
