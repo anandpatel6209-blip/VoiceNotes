@@ -162,6 +162,28 @@
       apiKey = localStorage.getItem('vn_api_key') || apiKey;
     }
 
+    // Fallback to local secrets.json if key is empty
+    if (!apiKey) {
+      try {
+        const res = await fetch(chrome.runtime.getURL('secrets.json'));
+        if (res.ok) {
+          const secret = await res.json();
+          if (secret.apiKey) {
+            apiKey = secret.apiKey.trim();
+            if (secret.provider) provider = secret.provider;
+            if (secret.model) model = secret.model;
+            if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+              await chrome.storage.local.set({
+                vn_api_key: apiKey,
+                vn_provider: provider,
+                vn_model: model
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     providerSelect.value = provider;
     populateModels(provider, model);
     apiKeyInput.value = apiKey;

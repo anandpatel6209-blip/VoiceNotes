@@ -237,7 +237,7 @@ export function parseStructuredEditResponse(rawText, userTime = 0, cleanInstruct
 
   const rawOps = Array.isArray(parsed)
     ? parsed
-    : (parsed.operations || parsed.changeset || parsed.notes || [parsed]);
+    : (parsed.operations || parsed.changes || parsed.changeset || parsed.notes || [parsed]);
 
   if (!Array.isArray(rawOps) || rawOps.length === 0) {
     return fallback;

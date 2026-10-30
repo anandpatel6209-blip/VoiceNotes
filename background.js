@@ -66,6 +66,22 @@ async function getConfig() {
     chrome.storage.local.set({ vn_api_key: apiKey });
   }
 
+  // Load from local secrets.json if apiKey is still empty
+  if (!apiKey) {
+    try {
+      const res = await fetch(chrome.runtime.getURL('secrets.json'));
+      if (res.ok) {
+        const secret = await res.json();
+        if (secret.apiKey) {
+          apiKey = secret.apiKey.trim();
+          chrome.storage.local.set({ vn_api_key: apiKey });
+          if (secret.provider) chrome.storage.local.set({ vn_provider: secret.provider });
+          if (secret.model) chrome.storage.local.set({ vn_model: secret.model });
+        }
+      }
+    } catch (e) {}
+  }
+
   return {
     provider,
     model,
