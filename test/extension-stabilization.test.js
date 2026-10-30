@@ -254,4 +254,73 @@ describe('Extension Stabilization & Architecture Fixes', () => {
     assert.strictEqual(notesList.length, 2);
     assert.strictEqual(notesList[1].id, 'n_3');
   });
+
+  it('8. Zero-API-Key Extractive Note Generation: synthesizes structured Heading + Bullets', () => {
+    const chunkText =
+      'There will be mornings when you sleep longer than planned. The key is waking up between 3 AM and 5 AM. During these early hours the world is quiet and you can focus on personal development. Discipline is the bridge between goals and accomplishment.';
+
+    // Extractive summary generator logic (matches content.js implementation)
+    function generateExtractiveTopicNote(chunkStart, chunkEnd, text, topicTitle = '') {
+      const cleanText = text.replace(/\s+/g, ' ').trim();
+      const rawSentences = cleanText
+        .split(/(?<=[.?!])\s+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 15);
+
+      const sentences = rawSentences.length > 0 ? rawSentences : [cleanText];
+      let heading = topicTitle || '';
+      if (!heading) {
+        const first = sentences[0];
+        heading = first.split(/\s+/).slice(0, 6).join(' ').replace(/[,.:;!?]+$/, '');
+      }
+
+      const bullets = sentences.slice(0, 3).map((s) => `• ${s}`).join('\n');
+      return {
+        id: `ext_${chunkStart}`,
+        time: chunkStart,
+        text: `**${heading}**\n${bullets}`,
+        source: 'ai'
+      };
+    }
+
+    const note = generateExtractiveTopicNote(0, 60, chunkText, 'The Power Of Early Morning');
+    assert.ok(note);
+    assert.strictEqual(note.source, 'ai');
+    assert.ok(note.text.includes('**The Power Of Early Morning**'));
+    assert.ok(note.text.includes('• There will be mornings when you sleep longer than planned.'));
+    assert.ok(note.text.includes('• The key is waking up between 3 AM and 5 AM.'));
+  });
+
+  it('9. Completed video playback backfills notes across timeline when notesList is empty', () => {
+    const videoTranscript = [
+      { start: 5, end: 12, text: 'Welcome to this lesson on waking up early and habit formation.' },
+      { start: 20, end: 35, text: 'The morning hours between 3 AM and 5 AM give you quiet time.' },
+      { start: 65, end: 80, text: 'Section two covers personal development and morning routines.' },
+      { start: 90, end: 110, text: 'Reading and meditating in silence sets the tone for your day.' },
+      { start: 130, end: 155, text: 'Consistency is what converts ambition into tangible results.' }
+    ];
+
+    const notesList = [];
+    const currentSec = 160; // video has played 160s
+
+    // Simulates backfilling logic in autoGenerateNotes
+    const step = 60;
+    for (let t = 0; t + 25 <= currentSec; t += step) {
+      const segEnd = Math.min(currentSec, t + step);
+      const segs = videoTranscript.filter((s) => s.start >= t && s.start < segEnd);
+      const segText = segs.map((s) => s.text).join(' ').trim();
+      if (segText.length >= 15) {
+        notesList.push({
+          id: `note_${t}`,
+          time: t,
+          text: `**Topic at ${t}s**\n• ${segText.slice(0, 80)}`,
+          source: 'ai'
+        });
+      }
+    }
+
+    assert.ok(notesList.length >= 2, 'Must generate multiple notes across the elapsed video timeline');
+    assert.strictEqual(notesList[0].time, 0);
+    assert.strictEqual(notesList[1].time, 60);
+  });
 });

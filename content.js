@@ -2942,24 +2942,108 @@
   }
 
   /**
+   * Extractive Smart Note Generator (Zero-API-Key Fallback Engine)
+   * Automatically synthesizes structured notes (Heading + Topic Summary Bullets)
+   * directly from video captions/transcript even when no LLM API key is added.
+   */
+  function generateExtractiveTopicNote(chunkStart, chunkEnd, chunkText, topicTitle = '') {
+    if (!chunkText || typeof chunkText !== 'string' || chunkText.trim().length === 0) return null;
+
+    const cleanText = chunkText
+      .replace(/\s+/g, ' ')
+      .replace(/\[(?:Music|Applause|Laughter|Silence)\]/gi, '')
+      .trim();
+
+    if (cleanText.length < 15) return null;
+
+    // Split dialogue into meaningful sentences
+    const rawSentences = cleanText
+      .split(/(?<=[.?!])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 15 && !/^(thank you|subscribe|like and share|see you next time)/i.test(s));
+
+    const sentences = rawSentences.length > 0 ? rawSentences : [cleanText];
+
+    // Determine clean Topic Heading
+    let heading = topicTitle ? topicTitle.trim() : '';
+    if (!heading || heading.length === 0) {
+      const firstSentence = sentences[0];
+      const titleWords = firstSentence.split(/\s+/).slice(0, 6).join(' ');
+      heading = titleWords.charAt(0).toUpperCase() + titleWords.slice(1).replace(/[,.:;!?]+$/, '');
+    }
+
+    // Extract top 2-3 most informative takeaway sentences
+    let selectedSentences = [];
+    if (sentences.length <= 3) {
+      selectedSentences = sentences;
+    } else {
+      selectedSentences = [
+        sentences[0],
+        sentences[Math.floor(sentences.length / 2)],
+        sentences[sentences.length - 1]
+      ];
+    }
+
+    const bullets = Array.from(new Set(selectedSentences))
+      .filter((s) => Boolean(s && s.length >= 10))
+      .slice(0, 3)
+      .map((s) => `• ${s}`)
+      .join('\n');
+
+    const formattedText = `**${heading}**\n${bullets || ('• ' + cleanText.slice(0, 180))}`;
+
+    return {
+      id: `ext_${chunkStart}_${Date.now().toString(36)}`,
+      time: Math.max(0, Math.floor(chunkStart)),
+      text: formattedText,
+      source: 'ai',
+      edited: false,
+      createdAt: Date.now()
+    };
+  }
+
+  /**
    * Send transcript chunk to background worker for AI note generation.
    * Generates smart notes in the format: Heading then Summary of the whole topic.
    */
   function triggerChunkGeneration(chunkStart, chunkEnd, chunkText, onComplete = null, topicTitle = '') {
+    const intervalKey = `${chunkStart}-${chunkEnd}`;
+    pendingIntervals.add(intervalKey);
+
+    // If API key is not configured, generate smart extractive note directly from video dialogue
     if (!settings.hasApiKey) {
-      console.warn(`${TAG} Live notes generation paused: API key not configured.`);
+      console.log(`${TAG} Live notes generating via extractive engine (no API key configured).`);
       updateApiKeyBanner();
-      showStatus('🔑 Configure API key in Settings (•••) to enable AI notes.', false);
+      pendingIntervals.delete(intervalKey);
+
+      const fallbackNote = generateExtractiveTopicNote(chunkStart, chunkEnd, chunkText, topicTitle);
+      if (fallbackNote) {
+        const isDuplicate = notesList.some(
+          (n) =>
+            n.id === fallbackNote.id ||
+            (n.text.trim().toLowerCase() === fallbackNote.text.trim().toLowerCase() &&
+              Math.abs(n.time - fallbackNote.time) < 15)
+        );
+
+        if (!isDuplicate) {
+          processedIntervals.add(intervalKey);
+          notesList.push(fallbackNote);
+          notesList.sort((a, b) => a.time - b.time);
+          renderAllNotes([fallbackNote.id]);
+          debounceSaveNotes();
+          showStatus('✓ Topic note added: Heading + Summary');
+          setTimeout(hideStatus, 2500);
+        }
+      }
+
       if (typeof onComplete === 'function') {
         try {
-          onComplete({ success: false, error: 'API key not configured' });
+          onComplete({ success: true, notes: fallbackNote ? [fallbackNote] : [] });
         } catch (e) {}
       }
       return;
     }
 
-    const intervalKey = `${chunkStart}-${chunkEnd}`;
-    pendingIntervals.add(intervalKey);
     isAiRequestActive = true;
     setWritingState(true, 'Writing smart notes');
 
@@ -2996,7 +3080,16 @@
         if (response?.error && response.error.includes('API key')) {
           settings.hasApiKey = false;
           updateApiKeyBanner();
-          showStatus('🔑 Configure API key in Settings to generate AI notes.', false);
+          const fallbackNote = generateExtractiveTopicNote(chunkStart, chunkEnd, chunkText, topicTitle);
+          if (fallbackNote) {
+            processedIntervals.add(intervalKey);
+            notesList.push(fallbackNote);
+            notesList.sort((a, b) => a.time - b.time);
+            renderAllNotes([fallbackNote.id]);
+            debounceSaveNotes();
+          }
+          showStatus('✓ Note generated from video dialogue (Add API key in Settings for AI synthesis).');
+          setTimeout(hideStatus, 3500);
           return;
         }
 
@@ -3039,10 +3132,15 @@
             setTimeout(hideStatus, 2000);
           }
         } else if (response?.error) {
-          console.warn(`${TAG} Live notes generation error:`, response.error);
-          showErrorWithRetry('AI generation failed: ' + response.error, () => {
-            triggerChunkGeneration(chunkStart, chunkEnd, chunkText, onComplete, topicTitle);
-          });
+          console.warn(`${TAG} Live notes generation error, applying extractive fallback:`, response.error);
+          const fallbackNote = generateExtractiveTopicNote(chunkStart, chunkEnd, chunkText, topicTitle);
+          if (fallbackNote) {
+            processedIntervals.add(intervalKey);
+            notesList.push(fallbackNote);
+            notesList.sort((a, b) => a.time - b.time);
+            renderAllNotes([fallbackNote.id]);
+            debounceSaveNotes();
+          }
         }
       }
     );
@@ -3161,9 +3259,25 @@
 
     const video = getVideoElement();
     const currentSec = video ? Math.floor(video.currentTime) : 0;
+    const isEnded = Boolean(video && video.ended);
 
     // Check if the video has already reached or passed any completed topic
-    checkTopicCompletion(currentSec, false);
+    checkTopicCompletion(currentSec, isEnded);
+
+    // If playback has progressed past 45s or video ended, but notesList is still empty:
+    // Backfill notes for all completed sections across the past timeline in clean ~60s topic increments!
+    if (notesList.length === 0 && (currentSec >= 45 || isEnded || forceCurrentDialogue)) {
+      console.log(`${TAG} Backfilling notes for elapsed video playback (${currentSec}s)...`);
+      const step = 60;
+      for (let t = 0; t + 25 <= currentSec; t += step) {
+        const segEnd = Math.min(currentSec, t + step);
+        const segs = videoTranscript.filter((s) => s.start >= t && s.start < segEnd);
+        const segText = segs.map((s) => s.text).join(' ').trim();
+        if (segText.length >= 15) {
+          triggerChunkGeneration(t, segEnd, segText);
+        }
+      }
+    }
 
     // If still at the beginning of the video and no notes yet, inform the user
     if (notesList.length === 0 && !isAiRequestActive && !isAdActive) {
@@ -3288,6 +3402,9 @@
       renderAllNotes();
       const currentSec = Math.floor(video.currentTime);
       checkTopicCompletion(currentSec, true);
+      if (notesList.length === 0 && videoTranscript.length > 0) {
+        autoGenerateNotes(true);
+      }
     });
   }
 
