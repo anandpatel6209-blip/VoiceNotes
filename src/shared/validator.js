@@ -249,7 +249,9 @@ export function parseStructuredEditResponse(rawText, userTime = 0, cleanInstruct
   for (const op of rawOps) {
     if (!op || typeof op !== 'object') continue;
 
-    let rawAction = typeof op.action === 'string' ? op.action.toLowerCase().trim() : '';
+    let rawAction = typeof op.action === 'string'
+      ? op.action.toLowerCase().trim()
+      : (typeof op.operation === 'string' ? op.operation.toLowerCase().trim() : '');
 
     // Action aliases
     if (['add', 'insert', 'create', 'new'].includes(rawAction)) {
@@ -264,11 +266,11 @@ export function parseStructuredEditResponse(rawText, userTime = 0, cleanInstruct
 
     // If action is missing, infer from structure
     if (!rawAction) {
-      if (op.id !== undefined && (op.text || op.content)) {
+      if ((op.id !== undefined || op.targetId !== undefined || op.sectionId !== undefined) && (op.text || op.content || op.newText || op.updatedText || op.replacement)) {
         rawAction = 'update';
-      } else if (op.text || op.content || op.note) {
+      } else if (op.text || op.content || op.newText || op.updatedText || op.note) {
         rawAction = 'add';
-      } else if (op.id !== undefined) {
+      } else if (op.id !== undefined || op.targetId !== undefined) {
         rawAction = 'delete';
       } else {
         continue;
@@ -301,8 +303,10 @@ export function parseStructuredEditResponse(rawText, userTime = 0, cleanInstruct
         }
       });
     } else if (rawAction === 'update') {
-      const targetId = op.id !== undefined ? String(op.id).trim() : '';
-      const text = (op.text || op.content || op.note?.text || '').trim();
+      const targetId = (op.id !== undefined ? String(op.id).trim() : '') ||
+                       (op.targetId !== undefined ? String(op.targetId).trim() : '') ||
+                       (op.sectionId !== undefined ? String(op.sectionId).trim() : '');
+      const text = (op.text || op.content || op.newText || op.updatedText || op.replacement || op.note?.text || '').trim();
 
       normalizedOperations.push({
         action: 'update',
@@ -376,6 +380,7 @@ export function parseChangesetResponse(rawText, userTime = 0, cleanInstruction =
   ops.operation = structured.operation;
   ops.targetSection = structured.targetSection;
   ops.clarificationPrompt = structured.clarificationPrompt;
+  ops.operations = ops;
   return ops;
 }
 

@@ -868,11 +868,22 @@
       if (e.target.closest('.vn-notepad-time-btn, .vn-notepad-action-btn, .vn-inline-edit-input, .vn-btn')) {
         return;
       }
+      if (entry.classList.contains('vn-editing-mode')) {
+        return;
+      }
       if (selectedNoteId === note.id) {
         clearNoteSelection();
       } else {
         selectNoteForEdit(note.id);
       }
+    });
+
+    // Double click note to start inline editing directly
+    entry.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.vn-notepad-time-btn, .vn-notepad-action-btn, .vn-inline-edit-input, .vn-btn')) {
+        return;
+      }
+      startInlineEdit(note.id, entry);
     });
 
     // Header row: bracketed timestamp + user tag + hover action buttons
@@ -918,7 +929,7 @@
     });
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      selectNoteForEdit(note.id);
+      startInlineEdit(note.id, entry);
     });
 
     const deleteBtn = el('button', {
@@ -949,6 +960,11 @@
    * Start inline editing of an existing note inside document entry
    */
   function startInlineEdit(noteId, entryElement) {
+    if (entryElement.querySelector('.vn-inline-edit-input')) {
+      entryElement.querySelector('.vn-inline-edit-input').focus();
+      return;
+    }
+
     const note = notesList.find((n) => n.id === noteId);
     if (!note) return;
 
@@ -1001,7 +1017,7 @@
         renderAllNotes([note.id]);
         debounceSaveNotes();
         showUndoFeedback('Note updated');
-        showStatus('✓ Note updated with your voice edit');
+        showStatus('✓ Note updated with your edit');
         setTimeout(hideStatus, 2500);
         resumeVideo(true);
       }
@@ -1015,6 +1031,16 @@
       e.stopPropagation();
       clearNoteSelection();
       renderAllNotes();
+    });
+
+    editArea.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        saveBtn.click();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelBtn.click();
+      }
     });
 
     actionsRow.appendChild(inlineMicBtn);
@@ -2056,7 +2082,8 @@
       const activeInput = (document.activeElement?.classList?.contains('vn-inline-edit-input'))
         ? document.activeElement
         : inputEl;
-      speechBaseText = (selectedNoteId && activeInput === inputEl) ? '' : (activeInput ? activeInput.value.trim() : '');
+      const isAllSelected = activeInput && activeInput.selectionStart === 0 && activeInput.selectionEnd === activeInput.value.length && activeInput.value.length > 0;
+      speechBaseText = ((selectedNoteId && activeInput === inputEl) || isAllSelected) ? '' : (activeInput ? activeInput.value.trim() : '');
       try {
         activeSpeechRecognition.start();
         isListeningSpeech = true;
@@ -2242,6 +2269,9 @@
     const userTime = video ? Math.floor(video.currentTime) : 0;
     const currentSelectedId = selectedNoteId;
 
+    // Check if user is issuing an AI conversational command vs providing direct note text
+    const isConversationalCommand = /^(add\b|insert\b|append\b|rewrite\b|rephrase\b|change\b|modify\b|delete\b|remove\b|make\b|simplify\b|explain\b|summarize\b|expand\b|shorten\b|fix\b|update\b|correct\b|replace\b|format\b|convert\b|organize\b|translate\b|can you\b|could you\b|please\b|i want to\b)/i.test(instruction);
+
     // Direct / fallback update handler
     const applyDirectFallback = () => {
       // Case 1: Updating an existing selected note with the exact voice ("same to same")
@@ -2271,7 +2301,7 @@
           renderAllNotes([updatedId]);
           debounceSaveNotes();
           showUndoFeedback('Note updated');
-          showStatus('✓ Note updated with your voice edit');
+          showStatus('✓ Note updated with your edit');
           setTimeout(hideStatus, 2500);
 
           isSubmittingEdit = false;
@@ -2312,9 +2342,16 @@
       resumeVideo(true);
     };
 
+    // If user selected a note and entered direct text (not an AI command like "simplify" or "rewrite"),
+    // save the note directly and immediately
+    if (selectedNoteId && !isConversationalCommand) {
+      applyDirectFallback();
+      return;
+    }
+
     // Check if API key is configured before sending AI request
     if (!settings.hasApiKey) {
-      showStatus('🔑 Note added directly (enter API key in Settings for AI editing).', false);
+      showStatus(selectedNoteId ? '✓ Note updated' : '🔑 Note added directly (enter API key in Settings for AI editing).', false);
       applyDirectFallback();
       updateApiKeyBanner();
       return;
@@ -2346,6 +2383,11 @@
 
           // Handle clarification prompt from AI
           if (response.status === 'clarification_needed') {
+            if (currentSelectedId) {
+              console.log(`${TAG} AI requested clarification on selected note, applying direct fallback.`);
+              applyDirectFallback();
+              return;
+            }
             isSubmittingEdit = false;
             showStatus('❓ AI: ' + (response.clarificationPrompt || 'Please specify which note or section to edit.'), false);
             if (inputEl) {

@@ -367,7 +367,8 @@ async function handleProcessVoiceEdit(payload) {
     command: cleanInstruction,
     summary: changeset.summary,
     operation: changeset.operation,
-    targetSection: changeset.targetSection
+    targetSection: changeset.targetSection,
+    selectedNoteId: selectedNoteId || null
   });
 
   // Persist updated notes directly to storage

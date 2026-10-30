@@ -820,12 +820,18 @@
 }
 
 /* Inline Edit Area */
+.vn-notepad-entry.vn-editing-mode {
+  border-color: var(--vn-accent) !important;
+  background-color: var(--vn-surface-hover) !important;
+}
+
 .vn-inline-edit-input {
   width: 100%;
-  padding: 4px 6px;
-  font-family: var(--vn-font-ui);
-  font-size: 12px;
-  line-height: 1.4;
+  min-height: 56px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--vn-text);
   background-color: var(--vn-bg);
   border: 1px solid var(--vn-accent);

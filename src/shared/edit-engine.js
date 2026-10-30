@@ -25,7 +25,11 @@ export class EditEngine {
    * @param {Object} metadata Optional edit metadata: { command, summary, operation, targetSection }
    */
   applyChangeset(currentNotes, changeset, userTimestamp = 0, metadata = {}) {
-    if (!Array.isArray(changeset)) {
+    const operations = Array.isArray(changeset)
+      ? changeset
+      : (Array.isArray(changeset?.operations) ? changeset.operations : null);
+
+    if (!Array.isArray(operations)) {
       throw new Error('Changeset must be an array of operations.');
     }
 
@@ -81,7 +85,7 @@ export class EditEngine {
     const affectedIds = [];
     const inversePatch = [];
 
-    for (const op of changeset) {
+    for (const op of operations) {
       if (!op || typeof op !== 'object') continue;
 
       let action = typeof op.action === 'string' ? op.action.toLowerCase().trim() : '';
@@ -125,7 +129,13 @@ export class EditEngine {
           });
         }
       } else if (action === 'update') {
-        const existing = resolveExistingNote(op.id || op.targetSection);
+        let existing = resolveExistingNote(op.id || op.targetSection);
+        if (!existing && metadata.selectedNoteId) {
+          existing = resolveExistingNote(metadata.selectedNoteId);
+        }
+        if (!existing && currentNotes.length === 1) {
+          existing = currentNotes[0];
+        }
 
         if (existing) {
           const targetId = existing.id;
@@ -154,6 +164,23 @@ export class EditEngine {
             id: targetId,
             previousState
           });
+        } else if (op.text && typeof op.text === 'string' && op.text.trim().length > 0) {
+          // If note to update was not found, safely convert into an add operation so note is never lost
+          const valid = validateNote(
+            {
+              time: typeof op.time === 'number' ? op.time : userTimestamp,
+              text: op.text.trim(),
+              source: 'user',
+              edited: true
+            },
+            userTimestamp,
+            'user'
+          );
+          if (valid) {
+            notesMap.set(valid.id, valid);
+            affectedIds.push(valid.id);
+            inversePatch.push({ action: 'delete', id: valid.id });
+          }
         }
       } else if (action === 'delete') {
         const existing = resolveExistingNote(op.id || op.targetSection);
